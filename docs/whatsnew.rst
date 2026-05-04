@@ -9,8 +9,7 @@ v0.35.2 (Apr 27, 2026)
 v0.35.1 (Apr 10, 2026)
 ----------------------
 
-* :bdg-warning:`Bug Fix` Fixed an issue with xlings Lite on newer versions of Pyodide (:issues:`2690`).
-
+* :bdg-warning:`Bug Fix` Fixed an issue with xlwings Lite on newer versions of Pyodide (:issue:`2690`).
 
 v0.35.0 (Apr 5, 2026)
 ---------------------
@@ -21,7 +20,6 @@ v0.35.0 (Apr 5, 2026)
 * :bdg-warning:`Bug Fix` Fix type hints for collections (:issue:`2688`).
 * :bdg-info:`Enhancement` Improve reliability for UDFs with ``async_mode="threading"`` (:issue:`2682`).
 
-
 v0.34.0 (Mar 26, 2026)
 ----------------------
 
@@ -30,7 +28,7 @@ v0.34.0 (Mar 26, 2026)
 v0.33.22 (Mar 22, 2026)
 -----------------------
 
-* :bdg-info:`Enhancement` Added ``Range.to_png()`` and ``await Book.sync()`` for xlwings Lite (:issue:`#2684`).
+* :bdg-info:`Enhancement` Added ``Range.to_png()`` and ``await Book.sync()`` for xlwings Lite (:issue:`2684`).
 
 v0.33.21 (Mar 9, 2026)
 ----------------------
@@ -97,7 +95,6 @@ v0.33.10 (Mar 6, 2025)
 
 * :bdg-info:`Enhancement` :bdg-secondary:`PRO` xlwings Server: Added ``Range.copy_from`` (:issue:`2590`).
 * :bdg-warning:`Bug Fix` :bdg-secondary:`PRO` xlwings Server: Fixed ``Sheets.add()`` (:issue:`2589`).
-
 
 v0.33.9 (Feb 17, 2025)
 ----------------------
