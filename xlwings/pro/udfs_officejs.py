@@ -24,6 +24,7 @@ from typing import (
     Annotated,
     Any,
     Callable,
+    Literal,
     TypeVar,
     get_args,
     get_origin,
@@ -86,6 +87,46 @@ def extract_type_and_annotations(type_hint):
         return top_level_type, []
 
 
+def extract_enum_descriptor(type_hint, func_name, param_name):
+    """If type_hint is Literal[...] (optionally wrapped in Annotated[..., {...}]),
+    return a descriptor dict for an Office.js custom-function enum. Otherwise None.
+
+    Descriptor shape:
+        {"id": str, "type": "string"|"number", "values": list,
+         "tooltips": dict[value, str]}
+    """
+    base = type_hint
+    companion = {}
+    if get_origin(type_hint) is Annotated:
+        base, *annotations = get_args(type_hint)
+        for ann in annotations:
+            if isinstance(ann, dict):
+                companion = ann
+                break
+    if get_origin(base) is not Literal:
+        return None
+    values = list(get_args(base))
+    if not values:
+        return None
+    if all(isinstance(v, str) for v in values):
+        enum_type = "string"
+    elif all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in values):
+        enum_type = "number"
+    else:
+        raise XlwingsError(
+            f"Literal values for parameter '{param_name}' of '{func_name}' must be "
+            "all strings or all numbers. Mixed types are not supported."
+        )
+    enum_id = companion.get("enum_id") or f"{func_name}_{param_name}".upper()
+    tooltips = {k: v for k, v in companion.get("tooltips", {}).items() if k in values}
+    return {
+        "id": enum_id,
+        "type": enum_type,
+        "values": values,
+        "tooltips": tooltips,
+    }
+
+
 @overload
 def xlfunc(f: _F) -> _F:
     ...
@@ -122,16 +163,22 @@ def xlfunc(f: _F | None = None, **kwargs: Any) -> _F | Callable[[_F], _F]:
                     "options": {},
                 }
                 if var_name in type_hints:
-                    type_hint, annotations = extract_type_and_annotations(
-                        type_hints[var_name]
+                    enum_descriptor = extract_enum_descriptor(
+                        type_hints[var_name], f.__name__, var_name
                     )
-                    arg_info["options"]["convert"] = type_hint
-                    if annotations:
-                        for key, value in annotations[0].items():
-                            if key == "doc":
-                                arg_info["doc"] = value
-                            else:
-                                arg_info["options"][key] = value
+                    if enum_descriptor is not None:
+                        arg_info["options"]["enum"] = enum_descriptor
+                    else:
+                        type_hint, annotations = extract_type_and_annotations(
+                            type_hints[var_name]
+                        )
+                        arg_info["options"]["convert"] = type_hint
+                        if annotations:
+                            for key, value in annotations[0].items():
+                                if key == "doc":
+                                    arg_info["doc"] = value
+                                else:
+                                    arg_info["options"][key] = value
                 if var_pos >= num_required_args:
                     arg_info["optional"] = sig["defaults"][var_pos - num_required_args]
                 xlargs.append(arg_info)
@@ -430,6 +477,7 @@ def custom_functions_meta(module, typehinted_params_to_exclude=None):
     if typehinted_params_to_exclude is None:
         typehinted_params_to_exclude = []
     funcs = []
+    enums_by_id = {}
     for name, obj in inspect.getmembers(module):
         if hasattr(obj, "__xlfunc__"):
             xlfunc = obj.__xlfunc__
@@ -466,8 +514,31 @@ def custom_functions_meta(module, typehinted_params_to_exclude=None):
                 param = {}
                 param["description"] = arg["doc"]
                 param["name"] = arg["name"]
-                param["dimensionality"] = "matrix"
-                param["type"] = "any"
+                enum = arg["options"].get("enum")
+                if enum is not None:
+                    param["dimensionality"] = "scalar"
+                    param["type"] = enum["type"]
+                    param["customEnumId"] = enum["id"]
+                    existing = enums_by_id.get(enum["id"])
+                    if existing is None:
+                        enums_by_id[enum["id"]] = {
+                            "id": enum["id"],
+                            "type": enum["type"],
+                            "values": [
+                                _enum_value_entry(enum["type"], v, enum["tooltips"])
+                                for v in enum["values"]
+                            ],
+                        }
+                    elif existing["type"] != enum["type"] or [
+                        _enum_value_key(existing["type"], v) for v in existing["values"]
+                    ] != list(enum["values"]):
+                        raise XlwingsError(
+                            f"Custom function enum id '{enum['id']}' is used with "
+                            "conflicting values across functions in the same module."
+                        )
+                else:
+                    param["dimensionality"] = "matrix"
+                    param["type"] = "any"
                 if "optional" in arg:
                     param["optional"] = True
                 elif arg["vararg"]:
@@ -475,11 +546,29 @@ def custom_functions_meta(module, typehinted_params_to_exclude=None):
                 params.append(param)
             func["parameters"] = params
             funcs.append(func)
-    return {
+    result = {
         "allowCustomDataForDataTypeAny": True,
         "allowErrorForDataTypeAny": True,
         "functions": funcs,
     }
+    if enums_by_id:
+        result["enums"] = list(enums_by_id.values())
+    return result
+
+
+def _enum_value_entry(enum_type, value, tooltips):
+    entry = {"name": str(value)}
+    if enum_type == "string":
+        entry["stringValue"] = value
+    else:
+        entry["numberValue"] = value
+    if value in tooltips:
+        entry["tooltip"] = tooltips[value]
+    return entry
+
+
+def _enum_value_key(enum_type, value_entry):
+    return value_entry["stringValue" if enum_type == "string" else "numberValue"]
 
 
 # Custom scripts
