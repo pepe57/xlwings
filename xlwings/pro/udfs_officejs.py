@@ -517,16 +517,16 @@ def custom_functions_meta(module, typehinted_params_to_exclude=None):
                 param["description"] = arg["doc"]
                 param["name"] = arg["name"]
                 enum = arg["options"].get("enum")
-                if enum is not None:
+                if enum is not None and enum["type"] == "string":
                     param["dimensionality"] = "scalar"
-                    param["type"] = enum["type"]
+                    param["type"] = "string"
                     param["customEnumId"] = enum["id"]
                     enums.append(
                         {
                             "id": enum["id"],
-                            "type": enum["type"],
+                            "type": "string",
                             "values": [
-                                _enum_value_entry(enum["type"], v, enum["tooltips"])
+                                _enum_value_entry("string", v, enum["tooltips"])
                                 for v in enum["values"]
                             ],
                         }
