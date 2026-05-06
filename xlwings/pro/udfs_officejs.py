@@ -88,8 +88,9 @@ def extract_type_and_annotations(type_hint):
 
 
 def extract_enum_descriptor(type_hint, func_name, param_name):
-    """If type_hint is Literal[...] (optionally wrapped in Annotated[..., {...}]),
-    return a descriptor dict for an Office.js custom-function enum. Otherwise None.
+    """If type_hint is Literal[...] (optionally wrapped in Annotated[..., {"tooltips":
+    ...}]), return a descriptor dict for an Office.js custom-function enum. Otherwise
+    None.
 
     Descriptor shape:
         {"id": str, "type": "string"|"number", "values": list,
@@ -117,10 +118,9 @@ def extract_enum_descriptor(type_hint, func_name, param_name):
             f"Literal values for parameter '{param_name}' of '{func_name}' must be "
             "all strings or all numbers. Mixed types are not supported."
         )
-    enum_id = companion.get("enum_id") or f"{func_name}_{param_name}".upper()
     tooltips = {k: v for k, v in companion.get("tooltips", {}).items() if k in values}
     return {
-        "id": enum_id,
+        "id": f"{func_name}_{param_name}".upper(),
         "type": enum_type,
         "values": values,
         "tooltips": tooltips,
@@ -477,7 +477,7 @@ def custom_functions_meta(module, typehinted_params_to_exclude=None):
     if typehinted_params_to_exclude is None:
         typehinted_params_to_exclude = []
     funcs = []
-    enums_by_id = {}
+    enums = []
     for name, obj in inspect.getmembers(module):
         if hasattr(obj, "__xlfunc__"):
             xlfunc = obj.__xlfunc__
@@ -519,9 +519,8 @@ def custom_functions_meta(module, typehinted_params_to_exclude=None):
                     param["dimensionality"] = "scalar"
                     param["type"] = enum["type"]
                     param["customEnumId"] = enum["id"]
-                    existing = enums_by_id.get(enum["id"])
-                    if existing is None:
-                        enums_by_id[enum["id"]] = {
+                    enums.append(
+                        {
                             "id": enum["id"],
                             "type": enum["type"],
                             "values": [
@@ -529,13 +528,7 @@ def custom_functions_meta(module, typehinted_params_to_exclude=None):
                                 for v in enum["values"]
                             ],
                         }
-                    elif existing["type"] != enum["type"] or [
-                        _enum_value_key(existing["type"], v) for v in existing["values"]
-                    ] != list(enum["values"]):
-                        raise XlwingsError(
-                            f"Custom function enum id '{enum['id']}' is used with "
-                            "conflicting values across functions in the same module."
-                        )
+                    )
                 else:
                     param["dimensionality"] = "matrix"
                     param["type"] = "any"
@@ -551,8 +544,8 @@ def custom_functions_meta(module, typehinted_params_to_exclude=None):
         "allowErrorForDataTypeAny": True,
         "functions": funcs,
     }
-    if enums_by_id:
-        result["enums"] = list(enums_by_id.values())
+    if enums:
+        result["enums"] = enums
     return result
 
 
@@ -565,10 +558,6 @@ def _enum_value_entry(enum_type, value, tooltips):
     if value in tooltips:
         entry["tooltip"] = tooltips[value]
     return entry
-
-
-def _enum_value_key(enum_type, value_entry):
-    return value_entry["stringValue" if enum_type == "string" else "numberValue"]
 
 
 # Custom scripts
