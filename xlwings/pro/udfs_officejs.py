@@ -166,12 +166,14 @@ def xlfunc(f: _F | None = None, **kwargs: Any) -> _F | Callable[[_F], _F]:
                     enum_descriptor = extract_enum_descriptor(
                         type_hints[var_name], f.__name__, var_name
                     )
+                    type_hint, annotations = extract_type_and_annotations(
+                        type_hints[var_name]
+                    )
                     if enum_descriptor is not None:
                         arg_info["options"]["enum"] = enum_descriptor
+                        if annotations and "doc" in annotations[0]:
+                            arg_info["doc"] = annotations[0]["doc"]
                     else:
-                        type_hint, annotations = extract_type_and_annotations(
-                            type_hints[var_name]
-                        )
                         arg_info["options"]["convert"] = type_hint
                         if annotations:
                             for key, value in annotations[0].items():
