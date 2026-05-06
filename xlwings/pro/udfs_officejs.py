@@ -120,7 +120,7 @@ def extract_enum_descriptor(type_hint, func_name, param_name):
         )
     tooltips = {k: v for k, v in companion.get("tooltips", {}).items() if k in values}
     return {
-        "id": f"{func_name}_{param_name}".upper(),
+        "id": f"{func_name}.{param_name}".upper(),
         "type": enum_type,
         "values": values,
         "tooltips": tooltips,
