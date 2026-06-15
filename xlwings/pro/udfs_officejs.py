@@ -475,9 +475,16 @@ async def custom_functions_call(
                     logger.info(
                         f"Task {t.get_name()} failed with exception: {t.exception()}"
                     )
-                background_tasks.pop(task_key, None)
-                task_key_to_sid_counts.pop(task_key, None)
-                task_key_to_task.pop(task_key, None)
+                # Only clear the bookkeeping if it still points at THIS task.
+                # add_done_callback fires via loop.call_soon, so on a restart
+                # (e.g. full recalc) the cancelled old task's callback can run
+                # *after* the new task has already registered itself under the
+                # same key - an unconditional pop would untrack the live new
+                # task, orphaning it and breaking subsequent restarts.
+                if background_tasks.get(task_key) is t:
+                    background_tasks.pop(task_key, None)
+                    task_key_to_sid_counts.pop(task_key, None)
+                    task_key_to_task.pop(task_key, None)
 
             mytask.add_done_callback(on_task_done)
             return mytask
