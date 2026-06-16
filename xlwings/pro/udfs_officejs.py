@@ -401,6 +401,22 @@ async def custom_functions_call(
     ret_info = func_info["ret"]
     required_roles = func_info["required_roles"]
 
+    # Compute the producer discriminator only for handle-producing calls that carry a
+    # caller address - the same guard as the evict_superseded() call below - to avoid the
+    # JSON+hash over the raw args on every (typically non-producing) custom function call.
+    # Captured here from the raw args before they're mutated below (varargs flattened,
+    # scalars converted, object handles resolved): distinguishes handle-producing calls
+    # that share a caller address, e.g. the two MAKE calls in =CONSUME(MAKE("a"), MAKE("b")).
+    caller_address = data.get("caller_address")
+    produces_handles = (
+        ret_info["options"].get("convert") in object_handles.CONVERTER_KEYS
+    )
+    producer_scope = (
+        object_handles.producer_discriminator(func_name, args)
+        if caller_address and produces_handles
+        else None
+    )
+
     if current_user:
         await check_user_roles(current_user, required_roles)
 
@@ -512,10 +528,6 @@ async def custom_functions_call(
         ret = func(*args)
 
     ret = convert(ret, ret_info, data)
-    caller_address = data.get("caller_address")
-    produces_handles = (
-        ret_info["options"].get("convert") in object_handles.CONVERTER_KEYS
-    )
     if caller_address and produces_handles:
         # Deterministically drop the object-handle entries that this cell's previous
         # invocation wrote. Only handle-producing functions are tracked - for any other
@@ -529,6 +541,7 @@ async def custom_functions_call(
             ret,
             user_id=getattr(current_user, "id", None),
             session_id=data.get("session_id"),
+            discriminator=producer_scope,
         )
     return ret
 
