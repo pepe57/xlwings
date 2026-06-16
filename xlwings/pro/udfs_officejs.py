@@ -259,13 +259,27 @@ def xlarg(arg: str, convert: Any = None, **kwargs: Any) -> Callable[[_F], _F]:
     return inner
 
 
+def js_to_none(arg):
+    # Pyodide >= 0.28 surfaces JS `null` as a distinct `JsNull` sentinel rather
+    # than Python `None`, which breaks `arg is None` checks (e.g. empty Excel
+    # cells no longer trigger optional-argument defaults). Normalize it back.
+    try:
+        from pyodide.ffi import JsNull
+
+        if isinstance(arg, JsNull):
+            return None
+    except ImportError:
+        pass
+    return arg
+
+
 def to_scalar(arg):
     if isinstance(arg, (list, tuple)) and len(arg) == 1:
         if isinstance(arg[0], (list, tuple)) and len(arg[0]) == 1:
             arg = arg[0][0]
         else:
             arg = arg[0]
-    return arg
+    return js_to_none(arg)
 
 
 date_format_language_map = {
