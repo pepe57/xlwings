@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.36.6 (Jun 17, 2026)
+
+- xlwings Lite: fix support for Pyodide 314.0.0
+- xlwings Lite & xlwings Server: resume streaming functions after a full spreadsheet recalc.
+- xlwings Lite & xlwings Server: fix custom functions with multiple object handle calls as arguments.
+
 ## v0.36.5 (Jun 12, 2026)
 
 - xlwings Server and xlwings Lite: fix memory leak with object handles during recalculation. 
