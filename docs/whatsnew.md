@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.36.7 (Jun 26, 2026)
+
+- xlwings Lite: fix empty values in custom functions (showed `jsnull` instead of `None` with Pyodide 314.0.0).
+
 ## v0.36.6 (Jun 17, 2026)
 
 - xlwings Lite: fix support for Pyodide 314.0.0
