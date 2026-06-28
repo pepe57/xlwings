@@ -81,6 +81,12 @@ class Pipeline(list):
             stage(*args, **kwargs)
 
     async def async_call(self, *args, **kwargs):
+        # Two stage conventions are supported here:
+        # - Stages with an `async_run` hook (e.g. ToValueStage, whose write_value
+        #   may be sync or async) - call it so the awaited result is assigned
+        #   correctly; its sync `__call__` would reject an async converter.
+        # - Stages without one (e.g. the Async* read stages) - call directly and
+        #   await only if the result is awaitable. Plain sync stages return None.
         for stage in self:
             async_run = getattr(stage, "async_run", None)
             if async_run is not None:
