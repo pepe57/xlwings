@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.36.8 (Jun 28, 2026)
+
+- xlwings Server and xlwings Lite: converters can now define an async write stage.
+
 ## v0.36.7 (Jun 26, 2026)
 
 - xlwings Lite: fix empty values in custom functions (showed `jsnull` instead of `None` with Pyodide 314.0.0).
